@@ -6,7 +6,8 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
-    "deploy:syscoin": "hardhat run scripts/deploy.ts --network syscoin"
+    "deploy:syscoin": "hardhat run scripts/deploy.ts --network syscoin",
+    "deploy:syscoinTestnet": "hardhat run scripts/deploy.ts --network syscoinTestnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
