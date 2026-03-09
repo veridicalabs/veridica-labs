@@ -30,7 +30,7 @@ const config: HardhatUserConfig = {
     },
     // Syscoin NEVM Testnet — Tanenbaum (chainId: 5700)
     syscoinTestnet: {
-      url: process.env.RPC_URL_TESTNET || "https://tanenbaum.io/rpc",
+      url: process.env.RPC_URL_TESTNET || "https://rpc.tanenbaum.io",
       chainId: 5700,
       accounts: DEPLOYER_KEY,
     },
