@@ -7,27 +7,37 @@ import EscrowABI from "../contracts/EscrowCampaign.abi.json";
  *
  * Connects to the deployed EscrowCampaign contract on Syscoin NEVM.
  * Handles deposit, registerConversion, releasePayment, and refund operations.
+ * 
+ * If ESCROW_CONTRACT_ADDRESS is not set, runs in MOCK mode for development.
  */
 export class EscrowService {
-  private provider: ethers.JsonRpcProvider;
-  private contract: ethers.Contract;
-  private verifierWallet: ethers.Wallet;
+  private provider: ethers.JsonRpcProvider | null = null;
+  private contract: ethers.Contract | null = null;
+  private verifierWallet: ethers.Wallet | null = null;
+  private mockMode: boolean = false;
 
   constructor() {
     const rpcUrl = process.env.RPC_URL_TESTNET || "https://rpc.tanenbaum.io";
     const contractAddress = process.env.ESCROW_CONTRACT_ADDRESS;
     const verifierKey = process.env.VERIFIER_PRIVATE_KEY;
 
-    if (!contractAddress) {
-      throw new Error("ESCROW_CONTRACT_ADDRESS not set in .env");
-    }
-    if (!verifierKey) {
-      throw new Error("VERIFIER_PRIVATE_KEY not set in .env");
+    if (!contractAddress || !verifierKey) {
+      console.log("[EscrowService] ⚠️ MOCK MODE - Contract not deployed or env vars missing");
+      console.log("  ESCROW_CONTRACT_ADDRESS:", contractAddress ? "✅" : "❌ missing");
+      console.log("  VERIFIER_PRIVATE_KEY:", verifierKey ? "✅" : "❌ missing");
+      this.mockMode = true;
+      return;
     }
 
+    console.log("[EscrowService] ⛓️ Connecting to Syscoin NEVM...");
+    console.log(`  RPC: ${rpcUrl}`);
+    console.log(`  Contract: ${contractAddress}`);
+    
     this.provider = new ethers.JsonRpcProvider(rpcUrl);
     this.verifierWallet = new ethers.Wallet(verifierKey, this.provider);
     this.contract = new ethers.Contract(contractAddress, EscrowABI.abi, this.verifierWallet);
+    
+    console.log("[EscrowService] ✅ Connected to contract");
   }
 
   /**
@@ -68,23 +78,36 @@ export class EscrowService {
    * This reserves funds from the campaign balance (net + fee).
    */
   async registerConversion(campaignId: string, conversionId: string, recipientAddress: string) {
+    console.log(`[EscrowService] ⛓️ registerConversion()`);
+    console.log(`  Campaign: ${campaignId}`);
+    console.log(`  Conversion: ${conversionId}`);
+    console.log(`  Recipient: ${recipientAddress}`);
+
+    // Mock mode for development
+    if (this.mockMode) {
+      const mockTxHash = `0xMOCK_REGISTER_${Date.now().toString(16)}`;
+      console.log(`[EscrowService] 🎭 MOCK MODE - Simulating registerConversion`);
+      console.log(`[EscrowService] ✅ Mock TX: ${mockTxHash}`);
+      return {
+        success: true,
+        txHash: mockTxHash,
+        conversionIdBytes32: ethers.keccak256(ethers.toUtf8Bytes(conversionId)),
+      };
+    }
+
     try {
       const campaignIdBytes32 = ethers.keccak256(ethers.toUtf8Bytes(campaignId));
       const conversionIdBytes32 = ethers.keccak256(ethers.toUtf8Bytes(conversionId));
 
-      console.log(`[Escrow] Registering conversion on-chain...`);
-      console.log(`  Campaign: ${campaignId}`);
-      console.log(`  Conversion: ${conversionId}`);
-      console.log(`  Recipient: ${recipientAddress}`);
-
-      const tx = await this.contract.registerConversion(
+      console.log(`[EscrowService] 📤 Sending tx to contract...`);
+      const tx = await this.contract!.registerConversion(
         campaignIdBytes32,
         conversionIdBytes32,
         recipientAddress
       );
 
       const receipt = await tx.wait();
-      console.log(`[Escrow] ✅ Conversion registered. Tx: ${receipt.hash}`);
+      console.log(`[EscrowService] ✅ Conversion registered. Tx: ${receipt.hash}`);
 
       return {
         success: true,
@@ -92,7 +115,7 @@ export class EscrowService {
         conversionIdBytes32,
       };
     } catch (error) {
-      console.error("[Escrow] registerConversion failed:", error);
+      console.error("[EscrowService] ❌ registerConversion failed:", error);
       throw error;
     }
   }
@@ -102,22 +125,35 @@ export class EscrowService {
    * Anyone can call this (trustless settlement).
    */
   async releasePayment(conversionId: string) {
+    console.log(`[EscrowService] 💸 releasePayment()`);
+    console.log(`  Conversion: ${conversionId}`);
+
+    // Mock mode for development
+    if (this.mockMode) {
+      const mockTxHash = `0xMOCK_RELEASE_${Date.now().toString(16)}`;
+      console.log(`[EscrowService] 🎭 MOCK MODE - Simulating releasePayment`);
+      console.log(`[EscrowService] ✅ Mock TX: ${mockTxHash}`);
+      return {
+        success: true,
+        txHash: mockTxHash,
+      };
+    }
+
     try {
       const conversionIdBytes32 = ethers.keccak256(ethers.toUtf8Bytes(conversionId));
 
-      console.log(`[Escrow] Releasing payment for conversion ${conversionId}...`);
-
-      const tx = await this.contract.releasePayment(conversionIdBytes32);
+      console.log(`[EscrowService] 📤 Sending tx to contract...`);
+      const tx = await this.contract!.releasePayment(conversionIdBytes32);
       const receipt = await tx.wait();
 
-      console.log(`[Escrow] ✅ Payment released. Tx: ${receipt.hash}`);
+      console.log(`[EscrowService] ✅ Payment released. Tx: ${receipt.hash}`);
 
       return {
         success: true,
         txHash: receipt.hash,
       };
     } catch (error) {
-      console.error("[Escrow] releasePayment failed:", error);
+      console.error("[EscrowService] ❌ releasePayment failed:", error);
       throw error;
     }
   }
@@ -147,9 +183,24 @@ export class EscrowService {
    * Query campaign state from contract.
    */
   async getCampaign(campaignId: string) {
+    console.log(`[EscrowService] 📊 getCampaign(${campaignId})`);
+
+    if (this.mockMode) {
+      console.log(`[EscrowService] 🎭 MOCK MODE - Returning mock campaign data`);
+      return {
+        advertiser: "0xMOCK_ADVERTISER",
+        balance: "1.0",
+        totalDeposited: "1.0",
+        totalReleased: "0.0",
+        costPerConversion: "0.1",
+        conversionsCount: "0",
+        active: true,
+      };
+    }
+
     try {
       const campaignIdBytes32 = ethers.keccak256(ethers.toUtf8Bytes(campaignId));
-      const campaign = await this.contract.getCampaign(campaignIdBytes32);
+      const campaign = await this.contract!.getCampaign(campaignIdBytes32);
 
       return {
         advertiser: campaign.advertiser,
@@ -161,7 +212,7 @@ export class EscrowService {
         active: campaign.active,
       };
     } catch (error) {
-      console.error("[Escrow] getCampaign failed:", error);
+      console.error("[EscrowService] ❌ getCampaign failed:", error);
       throw error;
     }
   }
@@ -170,9 +221,23 @@ export class EscrowService {
    * Query conversion state from contract.
    */
   async getConversion(conversionId: string) {
+    console.log(`[EscrowService] 📊 getConversion(${conversionId})`);
+
+    if (this.mockMode) {
+      console.log(`[EscrowService] 🎭 MOCK MODE - Returning mock conversion data`);
+      return {
+        campaignId: "0xMOCK_CAMPAIGN_ID",
+        recipient: "0xMOCK_RECIPIENT",
+        netAmount: "0.098",
+        fee: "0.002",
+        released: true,
+        registeredAt: new Date().toISOString(),
+      };
+    }
+
     try {
       const conversionIdBytes32 = ethers.keccak256(ethers.toUtf8Bytes(conversionId));
-      const conversion = await this.contract.getConversion(conversionIdBytes32);
+      const conversion = await this.contract!.getConversion(conversionIdBytes32);
 
       return {
         campaignId: conversion.campaignId,
@@ -183,7 +248,7 @@ export class EscrowService {
         registeredAt: new Date(Number(conversion.registeredAt) * 1000).toISOString(),
       };
     } catch (error) {
-      console.error("[Escrow] getConversion failed:", error);
+      console.error("[EscrowService] ❌ getConversion failed:", error);
       throw error;
     }
   }
