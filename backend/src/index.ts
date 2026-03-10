@@ -14,7 +14,17 @@ const PORT = process.env.PORT || 4000;
 app.use(cors());
 app.use(express.json());
 
+// Request logging middleware
+app.use((req, _res, next) => {
+  console.log(`\n[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  if (Object.keys(req.body).length > 0) {
+    console.log("[Request Body]", JSON.stringify(req.body, null, 2));
+  }
+  next();
+});
+
 app.get("/health", (_req, res) => {
+  console.log("[Health] ✅ Health check OK");
   res.json({ status: "ok", service: "veridica-api" });
 });
 
@@ -24,5 +34,19 @@ app.use("/conversion", conversionRoutes);
 app.use("/escrow", escrowRoutes);
 
 app.listen(PORT, () => {
-  console.log(`Veridica API running on http://localhost:${PORT}`);
+  console.log("\n========================================");
+  console.log(" VERIDICA API SERVER");
+  console.log("========================================");
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+  console.log(`✅ Health check: http://localhost:${PORT}/health`);
+  console.log("========================================");
+  console.log("Available endpoints:");
+  console.log("  POST /lead              - Create lead + Vera response");
+  console.log("  POST /conversion        - Confirm conversion + on-chain payment");
+  console.log("  POST /campaign          - Create campaign");
+  console.log("  GET  /campaign          - List campaigns");
+  console.log("  GET  /campaign/:id      - Get campaign by ID");
+  console.log("  GET  /lead/campaign/:id - List leads by campaign");
+  console.log("  GET  /conversion/campaign/:id - List conversions");
+  console.log("========================================\n");
 });
