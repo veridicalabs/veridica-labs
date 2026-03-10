@@ -6,6 +6,47 @@ const campaignService = new CampaignService();
 const agentService = new AgentService();
 
 export class CampaignController {
+  /**
+   * POST /api/campaign/generate-ad
+   * OpenClaw Skill: Generate ad copy
+   */
+  generateAd = async (req: Request, res: Response) => {
+    try {
+      const { service, audience, goal, tone } = req.body;
+
+      console.log("\n========================================");
+      console.log("[CampaignController] 🎨 POST /api/campaign/generate-ad");
+      console.log(`  Service: ${service}`);
+      console.log(`  Audience: ${audience}`);
+      console.log(`  Goal: ${goal}`);
+      console.log(`  Tone: ${tone || "default"}`);
+      console.log("========================================\n");
+
+      if (!service || !audience || !goal) {
+        return res.status(400).json({ 
+          error: "service, audience, and goal are required" 
+        });
+      }
+
+      const result = await agentService.generateAdSkill({
+        service,
+        audience,
+        goal,
+        tone,
+      });
+
+      console.log("[CampaignController] ✅ Ad generated:", result.headline);
+      res.json(result);
+    } catch (error) {
+      console.log("[CampaignController] ❌ Error:", error);
+      res.status(500).json({ error: "Failed to generate ad" });
+    }
+  };
+
+  /**
+   * POST /campaign (legacy)
+   * Create campaign + auto-generate ad
+   */
   create = async (req: Request, res: Response) => {
     try {
       const { name, description, budget, costPerConversion } = req.body;

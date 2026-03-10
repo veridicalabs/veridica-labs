@@ -1,11 +1,49 @@
 import { Request, Response } from "express";
 import { ConversionService } from "../services/conversion.service";
+import { AgentService } from "../services/agent.service";
 
 const conversionService = new ConversionService();
+const agentService = new AgentService();
 
 export class ConversionController {
   /**
-   * POST /conversion
+   * POST /api/conversion/confirm
+   * OpenClaw Skill: Confirm a conversion
+   */
+  confirmSkill = async (req: Request, res: Response) => {
+    try {
+      const { leadId, conversionType, conversationHistory, note } = req.body;
+
+      console.log("\n========================================");
+      console.log("[ConversionController] 🔍 POST /api/conversion/confirm");
+      console.log(`  Lead ID: ${leadId}`);
+      console.log(`  Type: ${conversionType}`);
+      console.log(`  Note: ${note || "none"}`);
+      console.log("========================================\n");
+
+      if (!leadId || !conversionType) {
+        return res.status(400).json({ 
+          error: "leadId and conversionType are required" 
+        });
+      }
+
+      const result = await agentService.confirmConversionSkill({
+        leadId,
+        conversionType,
+        conversationHistory,
+        note,
+      });
+
+      console.log("[ConversionController] ✅ Conversion status:", result.status);
+      res.json(result);
+    } catch (error) {
+      console.log("[ConversionController] ❌ Error:", error);
+      res.status(500).json({ error: "Failed to confirm conversion" });
+    }
+  };
+
+  /**
+   * POST /conversion (legacy)
    * Confirms a conversion and triggers on-chain payment.
    * 
    * Body:
