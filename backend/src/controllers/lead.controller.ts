@@ -5,6 +5,41 @@ import { prisma } from "../db/prisma";
 const agentService = new AgentService();
 
 export class LeadController {
+  /**
+   * POST /api/lead/respond
+   * OpenClaw Skill: Respond to a lead message
+   */
+  respond = async (req: Request, res: Response) => {
+    try {
+      const { message, campaignContext } = req.body;
+
+      console.log("\n========================================");
+      console.log("[LeadController] 💬 POST /api/lead/respond");
+      console.log(`  Message: ${message}`);
+      console.log(`  Context: ${campaignContext || "none"}`);
+      console.log("========================================\n");
+
+      if (!message) {
+        return res.status(400).json({ error: "message is required" });
+      }
+
+      const result = await agentService.respondLeadSkill({
+        message,
+        campaignContext,
+      });
+
+      console.log("[LeadController] ✅ Response generated");
+      res.json(result);
+    } catch (error) {
+      console.log("[LeadController] ❌ Error:", error);
+      res.status(500).json({ error: "Failed to respond to lead" });
+    }
+  };
+
+  /**
+   * POST /lead (legacy)
+   * Create lead + Vera auto-response
+   */
   create = async (req: Request, res: Response) => {
     try {
       const { campaignId, name, email, message } = req.body;

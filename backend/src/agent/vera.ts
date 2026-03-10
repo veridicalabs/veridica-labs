@@ -1,63 +1,118 @@
-import { AIProvider, MockAIProvider } from "./ai-provider";
+import {
+  OpenClawProvider,
+  MockAIProvider,
+  AIProvider,
+  RespondLeadInput,
+  RespondLeadOutput,
+  GenerateAdInput,
+  GenerateAdOutput,
+  ConfirmConversionInput,
+  ConfirmConversionOutput,
+} from "./ai-provider";
 
+/**
+ * Vera — AI Marketing Agent
+ * 
+ * Uses OpenClaw skills for:
+ * - respondLead: Respond to incoming leads
+ * - generateAd: Create ad copy
+ * - confirmConversion: Evaluate conversions
+ */
 class Vera {
-  private provider: AIProvider;
+  private provider: OpenClawProvider;
+  private legacyProvider: AIProvider;
 
-  constructor(provider?: AIProvider) {
-    this.provider = provider ?? new MockAIProvider();
-    console.log("[Vera] 🤖 Initialized with provider:", this.provider.constructor.name);
+  constructor() {
+    this.provider = new OpenClawProvider();
+    this.legacyProvider = new MockAIProvider();
+    console.log("[Vera] 🤖 Initialized");
   }
 
-  async generateAd(campaignName: string, description: string): Promise<string> {
-    console.log("[Vera]  generateAd() called");
-    console.log(`  Campaign: ${campaignName}`);
+  /**
+   * Respond to a lead message using OpenClaw skill
+   */
+  async respondLeadSkill(input: RespondLeadInput): Promise<RespondLeadOutput> {
+    console.log("[Vera] 💬 respondLeadSkill() called");
+    console.log(`  Message: ${input.message.substring(0, 50)}...`);
     
-    const prompt = `[GENERATE_AD]
-Campaign: ${campaignName}
-Description: ${description}
-Generate a compelling ad copy for this campaign.`;
-
-    console.log("[Vera]  Sending prompt to AI provider...");
-    const result = await this.provider.generateText(prompt);
-    console.log("[Vera]  AI response received:", result.substring(0, 50) + "...");
+    const result = await this.provider.respondLead(input);
+    console.log(`[Vera] ✅ Response: ${result.reply.substring(0, 50)}...`);
     return result;
   }
 
+  /**
+   * Generate ad copy using OpenClaw skill
+   */
+  async generateAdSkill(input: GenerateAdInput): Promise<GenerateAdOutput> {
+    console.log("[Vera] 🎨 generateAdSkill() called");
+    console.log(`  Service: ${input.service}`);
+    console.log(`  Audience: ${input.audience}`);
+    console.log(`  Goal: ${input.goal}`);
+    
+    const result = await this.provider.generateAd(input);
+    console.log(`[Vera] ✅ Ad generated: ${result.headline}`);
+    return result;
+  }
+
+  /**
+   * Confirm conversion using OpenClaw skill
+   */
+  async confirmConversionSkill(input: ConfirmConversionInput): Promise<ConfirmConversionOutput> {
+    console.log("[Vera] 🔍 confirmConversionSkill() called");
+    console.log(`  Lead ID: ${input.leadId}`);
+    console.log(`  Type: ${input.conversionType}`);
+    
+    const result = await this.provider.confirmConversion(input);
+    console.log(`[Vera] ✅ Conversion status: ${result.status}`);
+    return result;
+  }
+
+  /**
+   * Legacy method: Generate ad (for backward compatibility)
+   */
+  async generateAd(campaignName: string, description: string): Promise<string> {
+    console.log("[Vera] 🎨 generateAd() called (legacy)");
+    
+    const result = await this.provider.generateAd({
+      service: campaignName,
+      audience: "target customers",
+      goal: description,
+    });
+    
+    return `${result.headline}\n\n${result.body}\n\n${result.cta}`;
+  }
+
+  /**
+   * Legacy method: Respond to lead (for backward compatibility)
+   */
   async respondLead(
     campaignName: string,
     campaignDescription: string,
     leadMessage: string
   ): Promise<string> {
-    console.log("[Vera]  respondLead() called");
-    console.log(`  Campaign: ${campaignName}`);
-    console.log(`  Lead message: ${leadMessage.substring(0, 50)}...`);
+    console.log("[Vera] 💬 respondLead() called (legacy)");
     
-    const prompt = `[RESPOND_LEAD]
-Campaign: ${campaignName}
-Description: ${campaignDescription}
-Lead message: ${leadMessage}
-Respond as a helpful marketing assistant to qualify this lead.`;
-
-    console.log("[Vera]  Sending prompt to AI provider...");
-    const result = await this.provider.generateText(prompt);
-    console.log("[Vera]  AI response received:", result.substring(0, 50) + "...");
-    return result;
+    const result = await this.provider.respondLead({
+      message: leadMessage,
+      campaignContext: `${campaignName}: ${campaignDescription}`,
+    });
+    
+    return result.reply;
   }
 
+  /**
+   * Legacy method: Confirm conversion (for backward compatibility)
+   */
   async confirmConversion(conversationMessages: string[]): Promise<boolean> {
-    console.log("[Vera]  confirmConversion() called");
-    console.log(`  Messages: ${conversationMessages.length}`);
+    console.log("[Vera] 🔍 confirmConversion() called (legacy)");
     
-    const prompt = `[CONFIRM_CONVERSION]
-Conversation:
-${conversationMessages.join("\n")}
-Evaluate whether this conversation resulted in a conversion. Reply CONVERTED or NOT_CONVERTED.`;
-
-    console.log("[Vera]  Sending prompt to AI provider...");
-    const result = await this.provider.generateText(prompt);
-    const isConverted = result.trim().toUpperCase() === "CONVERTED";
-    console.log(`[Vera]  AI response: "${result.trim()}" → ${isConverted ? "CONVERTED ✅" : "NOT_CONVERTED ❌"}`);
-    return isConverted;
+    const result = await this.provider.confirmConversion({
+      leadId: "legacy",
+      conversionType: "sale",
+      conversationHistory: conversationMessages,
+    });
+    
+    return result.status === "confirmed";
   }
 }
 
