@@ -13,16 +13,14 @@ async function main() {
   const verifierAddress = process.env.VERIFIER_ADDRESS || deployer.address;
   // TREASURY_ADDRESS: receives platform fees
   const treasuryAddress = process.env.TREASURY_ADDRESS || deployer.address;
-  // PLATFORM_FEE_BPS: fee in basis points (200 = 2%)
-  const platformFeeBps = Number(process.env.PLATFORM_FEE_BPS ?? "200");
 
   console.log(`Verifier:       ${verifierAddress}`);
   console.log(`Treasury:       ${treasuryAddress}`);
-  console.log(`Platform fee:   ${platformFeeBps} bps (${platformFeeBps / 100}%)\n`);
+  console.log(`Fee tiers:      1-10 → 10%, 11-30 → 8%, 31+ → 6%\n`);
 
   // ── Deploy ──────────────────────────────────────────────────────────────────
   const EscrowCampaign = await ethers.getContractFactory("EscrowCampaign");
-  const escrow = await EscrowCampaign.deploy(verifierAddress, treasuryAddress, platformFeeBps);
+  const escrow = await EscrowCampaign.deploy(verifierAddress, treasuryAddress);
   await escrow.waitForDeployment();
 
   const contractAddress = await escrow.getAddress();
@@ -40,7 +38,7 @@ async function main() {
     contractAddress,
     verifier: verifierAddress,
     treasury: treasuryAddress,
-    platformFeeBps,
+    feeTiers: "1-10: 10%, 11-30: 8%, 31+: 6%",
     deployer: deployer.address,
     deployedAt: new Date().toISOString(),
     txHash: escrow.deploymentTransaction()?.hash ?? "",

@@ -53,7 +53,8 @@ model Conversion {
   campaignId String
   leadId     String
   amount     Float
-  status     String   @default("CONFIRMED") // CONFIRMED | PAID
+  status     String   @default("PENDING") // PENDING | CONFIRMED | FAILED | PAID
+  txHash     String?  // On-chain transaction hash
   createdAt  DateTime @default(now())
 
   campaign   Campaign @relation(fields: [campaignId], references: [id])

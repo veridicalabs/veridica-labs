@@ -5,6 +5,7 @@ import { campaignRoutes } from "./routes/campaign.routes";
 import { leadRoutes } from "./routes/lead.routes";
 import { conversionRoutes } from "./routes/conversion.routes";
 import { escrowRoutes } from "./routes/escrow.routes";
+import { survivalRoutes } from "./routes/survival.routes";
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use("/campaign", campaignRoutes);
 app.use("/lead", leadRoutes);
 app.use("/conversion", conversionRoutes);
 app.use("/escrow", escrowRoutes);
+app.use("/", survivalRoutes);
 
 app.listen(PORT, () => {
   console.log("\n========================================");
@@ -53,5 +55,11 @@ app.listen(PORT, () => {
   console.log("  GET  /campaign/:id          - Get campaign by ID");
   console.log("  GET  /lead/campaign/:id     - List leads by campaign");
   console.log("  GET  /conversion/campaign/:id - List conversions");
+  console.log("----------------------------------------");
+  console.log(" Survival & Economics:");
+  console.log("  GET  /health/full             - Full dependency health check");
+  console.log("  GET  /economics               - Operating economics dashboard");
+  console.log("  GET  /agent/mode              - Current agent mode");
+  console.log("  GET  /agent/mode/:campaignId  - Agent mode for campaign");
   console.log("========================================\n");
 });

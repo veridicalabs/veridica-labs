@@ -23,8 +23,7 @@ async function deployFixture() {
   const EscrowCampaign = await ethers.getContractFactory("EscrowCampaign");
   const escrow = (await EscrowCampaign.deploy(
     verifier.address,
-    treasury.address,
-    200 // 2% platform fee
+    treasury.address
   )) as EscrowCampaign;
 
   const campaignId = campaignKey("campaign-veridica-001");
@@ -60,27 +59,61 @@ describe("EscrowCampaign", function () {
   // ── Constructor ──────────────────────────────────────────────────────────────
 
   describe("constructor", function () {
-    it("stores verifier, treasury, and platformFeeBps", async function () {
+    it("stores verifier, treasury, and default fee tiers", async function () {
       const { escrow, verifier, treasury } = await deployFixture();
       expect(await escrow.verifier()).to.equal(verifier.address);
       expect(await escrow.treasury()).to.equal(treasury.address);
-      expect(await escrow.platformFeeBps()).to.equal(200);
+
+      // Default tiers: 1-10 → 10%, 11-30 → 8%, 31+ → 6%
+      const tiers = await escrow.getFeeTiers();
+      expect(tiers.length).to.equal(3);
+      expect(tiers[0].bps).to.equal(1000); // 10%
+      expect(tiers[1].bps).to.equal(800);  // 8%
+      expect(tiers[2].bps).to.equal(600);  // 6%
     });
 
     it("reverts if verifier is zero address", async function () {
       const [, , , treasury] = await ethers.getSigners();
       const Factory = await ethers.getContractFactory("EscrowCampaign");
       await expect(
-        Factory.deploy(ethers.ZeroAddress, treasury.address, 200)
+        Factory.deploy(ethers.ZeroAddress, treasury.address)
       ).to.be.revertedWithCustomError(Factory, "ZeroAddress");
     });
+  });
 
-    it("reverts if platform fee > 1000 bps", async function () {
-      const [owner, , , treasury] = await ethers.getSigners();
-      const Factory = await ethers.getContractFactory("EscrowCampaign");
-      await expect(
-        Factory.deploy(owner.address, treasury.address, 1001)
-      ).to.be.revertedWithCustomError(Factory, "FeeTooHigh");
+  // ── Tiered fees ─────────────────────────────────────────────────────────────
+
+  describe("Tiered fee structure", function () {
+    it("applies 10% for conversions 1-10", async function () {
+      const { escrow } = await deployFixture();
+      expect(await escrow.getFeeBps(1)).to.equal(1000);
+      expect(await escrow.getFeeBps(10)).to.equal(1000);
+    });
+
+    it("applies 8% for conversions 11-30", async function () {
+      const { escrow } = await deployFixture();
+      expect(await escrow.getFeeBps(11)).to.equal(800);
+      expect(await escrow.getFeeBps(30)).to.equal(800);
+    });
+
+    it("applies 6% for conversions 31+", async function () {
+      const { escrow } = await deployFixture();
+      expect(await escrow.getFeeBps(31)).to.equal(600);
+      expect(await escrow.getFeeBps(100)).to.equal(600);
+    });
+
+    it("first conversion uses 10% fee", async function () {
+      const ctx = await deployAndDeposit();
+      const convId = conversionKey("conv-tier1");
+
+      await ctx.escrow
+        .connect(ctx.verifier)
+        .registerConversion(ctx.campaignId, convId, ctx.recipient.address);
+
+      const conv = await ctx.escrow.getConversion(convId);
+      // 10% of 0.1 ETH = 0.01 ETH fee, 0.09 ETH net
+      expect(conv.fee).to.equal(ethers.parseEther("0.01"));
+      expect(conv.netAmount).to.equal(ethers.parseEther("0.09"));
     });
   });
 
@@ -151,6 +184,7 @@ describe("EscrowCampaign", function () {
       const ctx = await deployAndDeposit();
       const convId = conversionKey("conv-001");
 
+      // First conversion → 10% fee tier
       await expect(
         ctx.escrow
           .connect(ctx.verifier)
@@ -161,8 +195,8 @@ describe("EscrowCampaign", function () {
           ctx.campaignId,
           convId,
           ctx.recipient.address,
-          ethers.parseEther("0.098"), // 0.1 - 2% fee
-          ethers.parseEther("0.002")  // 2% fee
+          ethers.parseEther("0.09"), // 0.1 - 10% fee
+          ethers.parseEther("0.01")  // 10% fee
         );
 
       const c = await ctx.escrow.getCampaign(ctx.campaignId);
@@ -171,8 +205,8 @@ describe("EscrowCampaign", function () {
 
       const conv = await ctx.escrow.getConversion(convId);
       expect(conv.released).to.equal(false);
-      expect(conv.netAmount).to.equal(ethers.parseEther("0.098"));
-      expect(conv.fee).to.equal(ethers.parseEther("0.002"));
+      expect(conv.netAmount).to.equal(ethers.parseEther("0.09"));
+      expect(conv.fee).to.equal(ethers.parseEther("0.01"));
       expect(conv.recipient).to.equal(ctx.recipient.address);
     });
 
@@ -223,7 +257,6 @@ describe("EscrowCampaign", function () {
     });
 
     it("reverts with InsufficientBudget when balance < costPerConversion", async function () {
-      // Deposit exactly one conversion's worth, then try to register two
       const ctx = await deployFixture();
       await ctx.escrow
         .connect(ctx.advertiser)
@@ -255,20 +288,21 @@ describe("EscrowCampaign", function () {
       const recipientBefore = await ethers.provider.getBalance(ctx.recipient.address);
       const treasuryBefore = await ethers.provider.getBalance(ctx.treasury.address);
 
+      // First conversion → 10% fee: net=0.09, fee=0.01
       await expect(ctx.escrow.connect(ctx.other).releasePayment(convId))
         .to.emit(ctx.escrow, "PaymentReleased")
         .withArgs(
           ctx.campaignId,
           convId,
           ctx.recipient.address,
-          ethers.parseEther("0.098")
+          ethers.parseEther("0.09")
         );
 
       const recipientAfter = await ethers.provider.getBalance(ctx.recipient.address);
       const treasuryAfter = await ethers.provider.getBalance(ctx.treasury.address);
 
-      expect(recipientAfter - recipientBefore).to.equal(ethers.parseEther("0.098"));
-      expect(treasuryAfter - treasuryBefore).to.equal(ethers.parseEther("0.002"));
+      expect(recipientAfter - recipientBefore).to.equal(ethers.parseEther("0.09"));
+      expect(treasuryAfter - treasuryBefore).to.equal(ethers.parseEther("0.01"));
     });
 
     it("marks conversion as released and prevents double-release", async function () {
@@ -303,25 +337,24 @@ describe("EscrowCampaign", function () {
         .connect(ctx.verifier)
         .registerConversion(ctx.campaignId, convId, ctx.recipient.address);
 
-      // attacker/any address can trigger settlement
       await expect(ctx.escrow.connect(ctx.attacker).releasePayment(convId)).to.not.be.reverted;
     });
 
-    it("correctly handles zero-fee scenario (platformFeeBps = 0)", async function () {
-      const [owner, advertiser, recipient, treasury] = await ethers.getSigners();
-      const Factory = await ethers.getContractFactory("EscrowCampaign");
-      const escrowNoFee = (await Factory.deploy(owner.address, treasury.address, 0)) as unknown as EscrowCampaign;
+    it("correctly handles zero-fee scenario (setPlatformFee to 0)", async function () {
+      const ctx = await deployFixture();
+      // Set flat 0% fee
+      await ctx.escrow.connect(ctx.owner).setPlatformFee(0);
 
       const cId = campaignKey("campaign-nofee");
       const cost = ethers.parseEther("0.1");
 
-      await escrowNoFee.connect(advertiser).deposit(cId, cost, { value: cost });
+      await ctx.escrow.connect(ctx.advertiser).deposit(cId, cost, { value: cost });
       const convId = conversionKey("conv-nofee");
-      await escrowNoFee.connect(owner).registerConversion(cId, convId, recipient.address);
+      await ctx.escrow.connect(ctx.verifier).registerConversion(cId, convId, ctx.recipient.address);
 
-      const before = await ethers.provider.getBalance(recipient.address);
-      await escrowNoFee.releasePayment(convId);
-      const after = await ethers.provider.getBalance(recipient.address);
+      const before = await ethers.provider.getBalance(ctx.recipient.address);
+      await ctx.escrow.releasePayment(convId);
+      const after = await ethers.provider.getBalance(ctx.recipient.address);
 
       expect(after - before).to.equal(cost); // full amount, no fee
     });
@@ -358,15 +391,12 @@ describe("EscrowCampaign", function () {
       const ctx = await deployAndDeposit();
       const convId = conversionKey("conv-prerefund");
 
-      // Register conversion (reserves funds from balance)
       await ctx.escrow
         .connect(ctx.verifier)
         .registerConversion(ctx.campaignId, convId, ctx.recipient.address);
 
-      // Advertiser refunds remaining balance
       await ctx.escrow.connect(ctx.advertiser).refund(ctx.campaignId);
 
-      // Conversion was already reserved — payment should still go through
       const before = await ethers.provider.getBalance(ctx.recipient.address);
       await ctx.escrow.releasePayment(convId);
       const after = await ethers.provider.getBalance(ctx.recipient.address);
@@ -451,18 +481,50 @@ describe("EscrowCampaign", function () {
   });
 
   describe("Admin — setPlatformFee()", function () {
-    it("owner can update platform fee", async function () {
+    it("owner can set flat platform fee (replaces tiers)", async function () {
       const ctx = await deployFixture();
       await expect(ctx.escrow.connect(ctx.owner).setPlatformFee(500))
         .to.emit(ctx.escrow, "PlatformFeeSet")
         .withArgs(500);
-      expect(await ctx.escrow.platformFeeBps()).to.equal(500);
+
+      // Should now have a single flat tier
+      const tiers = await ctx.escrow.getFeeTiers();
+      expect(tiers.length).to.equal(1);
+      expect(tiers[0].bps).to.equal(500);
     });
 
     it("reverts with FeeTooHigh when bps > 1000", async function () {
       const ctx = await deployFixture();
       await expect(
         ctx.escrow.connect(ctx.owner).setPlatformFee(1001)
+      ).to.be.revertedWithCustomError(ctx.escrow, "FeeTooHigh");
+    });
+  });
+
+  describe("Admin — setFeeTiers()", function () {
+    it("owner can set custom fee tiers", async function () {
+      const ctx = await deployFixture();
+      const maxUint = ethers.MaxUint256;
+
+      await expect(
+        ctx.escrow.connect(ctx.owner).setFeeTiers([
+          { upperBound: 5, bps: 1000 },
+          { upperBound: 20, bps: 500 },
+          { upperBound: maxUint, bps: 300 },
+        ])
+      ).to.emit(ctx.escrow, "FeeTiersUpdated").withArgs(3);
+
+      expect(await ctx.escrow.getFeeBps(1)).to.equal(1000);
+      expect(await ctx.escrow.getFeeBps(5)).to.equal(500);
+      expect(await ctx.escrow.getFeeBps(100)).to.equal(300);
+    });
+
+    it("reverts with FeeTooHigh if any tier bps > 1000", async function () {
+      const ctx = await deployFixture();
+      await expect(
+        ctx.escrow.connect(ctx.owner).setFeeTiers([
+          { upperBound: ethers.MaxUint256, bps: 1001 },
+        ])
       ).to.be.revertedWithCustomError(ctx.escrow, "FeeTooHigh");
     });
   });

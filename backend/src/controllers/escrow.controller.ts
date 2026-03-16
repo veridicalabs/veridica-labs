@@ -6,8 +6,8 @@ const escrowService = new EscrowService();
 export class EscrowController {
   deposit = async (req: Request, res: Response) => {
     try {
-      const { campaignId, amount } = req.body;
-      const result = await escrowService.depositBudget(campaignId, amount);
+      const { campaignId, amount, advertiserAddress } = req.body;
+      const result = await escrowService.depositBudget(campaignId, amount, advertiserAddress);
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Failed to deposit" });
@@ -16,8 +16,8 @@ export class EscrowController {
 
   release = async (req: Request, res: Response) => {
     try {
-      const { campaignId, amount } = req.body;
-      const result = await escrowService.releasePayment(campaignId, amount);
+      const { conversionId } = req.body;
+      const result = await escrowService.releasePayment(conversionId);
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Failed to release payment" });

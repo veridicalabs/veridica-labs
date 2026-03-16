@@ -1,9 +1,11 @@
 import { prisma } from "../db/prisma";
 import { EscrowService } from "./escrow.service";
 import { AgentService } from "./agent.service";
+import { SurvivalService } from "./survival.service";
 
 const escrowService = new EscrowService();
 const agentService = new AgentService();
+const survivalService = new SurvivalService();
 
 export class ConversionService {
   /**
@@ -21,6 +23,24 @@ export class ConversionService {
     console.log(`  Lead ID: ${leadId}`);
     console.log(`  Recipient: ${recipientAddress}`);
     console.log("========================================\n");
+
+    // 0. Survival check — verify agent mode before processing
+    const survival = await survivalService.getAgentMode(campaignId);
+    console.log(`[ConversionService] 🛡️ Agent mode: ${survival.mode} (${survival.reason})`);
+
+    if (survival.mode === "PAUSED") {
+      throw new Error(`Campaign paused: ${survival.reason}`);
+    }
+    if (survival.mode === "HIBERNATE") {
+      throw new Error(`Agent in hibernate mode: ${survival.reason}`);
+    }
+    if (survival.mode === "DEGRADED") {
+      console.log("[ConversionService] ⚠️ DEGRADED mode — conversion will be stored as PENDING for retry");
+      const conversion = await prisma.conversion.create({
+        data: { campaignId, leadId, amount: 0, status: "PENDING" },
+      });
+      return { ...conversion, status: "PENDING", txHash: null, registerTxHash: null };
+    }
 
     // 1. Fetch campaign and lead
     const campaign = await prisma.campaign.findUniqueOrThrow({

@@ -1,0 +1,11 @@
+{
+  "network": "syscoinTestnet",
+  "chainId": 5700,
+  "contractAddress": "0xf46d0AbedDaCe2476D15E113beb441fABE5eC74E",
+  "verifier": "0xed7EB49BF52EeB0dd0A4cb399550409f7677E413",
+  "treasury": "0xed7EB49BF52EeB0dd0A4cb399550409f7677E413",
+  "feeTiers": "1-10: 10%, 11-30: 8%, 31+: 6%",
+  "deployer": "0xed7EB49BF52EeB0dd0A4cb399550409f7677E413",
+  "deployedAt": "2026-03-16T04:13:24.657Z",
+  "txHash": "0x944cd54f9d4e780d18ef56e48f7f9daf3319b7ecab472ef17b68b394c3fcda51"
+}

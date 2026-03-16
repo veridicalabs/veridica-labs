@@ -16,7 +16,12 @@ import "@openzeppelin/contracts/access/Ownable2Step.sol";
  *   3. releasePayment()       — Anyone triggers the on-chain transfer for a
  *                               registered conversion (trustless settlement).
  *
- * Admin can update verifier, treasury, and platform fee (max 10 %).
+ * Admin can update verifier, treasury, and fee tiers.
+ *
+ * Tiered fee structure (per campaign, based on monthly conversions):
+ *   1–10 conversions  → 10 % (1000 bps)
+ *   11–30 conversions →  8 % (800 bps)
+ *   31+ conversions   →  6 % (600 bps)
  */
 contract EscrowCampaign is ReentrancyGuard, Ownable2Step {
     // ─── Structs ─────────────────────────────────────────────────────────────────
@@ -29,6 +34,12 @@ contract EscrowCampaign is ReentrancyGuard, Ownable2Step {
         uint256 costPerConversion; // wei earmarked per verified conversion
         uint256 conversionsCount;  // total conversions registered
         bool active;               // accepts new conversions when true
+    }
+
+    /// @notice Fee tier: applies `bps` when conversionsCount < `upperBound`
+    struct FeeTier {
+        uint256 upperBound;  // exclusive upper bound (use type(uint256).max for last tier)
+        uint256 bps;         // fee in basis points
     }
 
     struct ConversionRecord {
@@ -44,7 +55,8 @@ contract EscrowCampaign is ReentrancyGuard, Ownable2Step {
 
     address public verifier;       // backend oracle — only address that can register conversions
     address public treasury;       // platform fee destination
-    uint256 public platformFeeBps; // fee in basis points (100 = 1 %, max 1000 = 10 %)
+
+    FeeTier[] public feeTiers;     // sorted ascending by upperBound
 
     mapping(bytes32 => Campaign) public campaigns;
     mapping(bytes32 => ConversionRecord) public conversions; // conversionId → record
@@ -74,6 +86,7 @@ contract EscrowCampaign is ReentrancyGuard, Ownable2Step {
     event VerifierSet(address indexed verifier);
     event TreasurySet(address indexed treasury);
     event PlatformFeeSet(uint256 bps);
+    event FeeTiersUpdated(uint256 tiersCount);
 
     // ─── Custom Errors ────────────────────────────────────────────────────────────
 
@@ -106,21 +119,22 @@ contract EscrowCampaign is ReentrancyGuard, Ownable2Step {
     // ─── Constructor ──────────────────────────────────────────────────────────────
 
     /**
-     * @param _verifier      Backend oracle address (hot wallet controlled by backend service).
-     * @param _treasury      Platform fee recipient.
-     * @param _platformFeeBps Fee in basis points (e.g. 200 = 2 %). Cannot exceed 1000 (10 %).
+     * @param _verifier Backend oracle address (hot wallet controlled by backend service).
+     * @param _treasury Platform fee recipient.
      */
     constructor(
         address _verifier,
-        address _treasury,
-        uint256 _platformFeeBps
+        address _treasury
     ) Ownable(msg.sender) {
         if (_verifier == address(0)) revert ZeroAddress();
         if (_treasury == address(0)) revert ZeroAddress();
-        if (_platformFeeBps > 1000) revert FeeTooHigh();
         verifier = _verifier;
         treasury = _treasury;
-        platformFeeBps = _platformFeeBps;
+
+        // Default tiered fees: 1-10 → 10%, 11-30 → 8%, 31+ → 6%
+        feeTiers.push(FeeTier({ upperBound: 11,                    bps: 1000 })); // 10%
+        feeTiers.push(FeeTier({ upperBound: 31,                    bps: 800  })); //  8%
+        feeTiers.push(FeeTier({ upperBound: type(uint256).max,     bps: 600  })); //  6%
     }
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -179,7 +193,8 @@ contract EscrowCampaign is ReentrancyGuard, Ownable2Step {
         if (!c.active) revert CampaignInactive();
         if (c.balance < c.costPerConversion) revert InsufficientBudget();
 
-        uint256 fee = (c.costPerConversion * platformFeeBps) / 10_000;
+        uint256 currentBps = _getFeeBps(c.conversionsCount + 1);
+        uint256 fee = (c.costPerConversion * currentBps) / 10_000;
         uint256 netAmount = c.costPerConversion - fee;
 
         // Reserve funds from campaign balance
@@ -274,9 +289,25 @@ contract EscrowCampaign is ReentrancyGuard, Ownable2Step {
         emit TreasurySet(_treasury);
     }
 
+    /**
+     * @notice Replace all fee tiers. Tiers must be sorted ascending by upperBound.
+     * @param _tiers Array of FeeTier structs. Last tier should use type(uint256).max.
+     */
+    function setFeeTiers(FeeTier[] calldata _tiers) external onlyOwner {
+        require(_tiers.length > 0, "Need at least one tier");
+        delete feeTiers;
+        for (uint256 i = 0; i < _tiers.length; i++) {
+            if (_tiers[i].bps > 1000) revert FeeTooHigh();
+            feeTiers.push(_tiers[i]);
+        }
+        emit FeeTiersUpdated(_tiers.length);
+    }
+
+    /// @notice Kept for backward compatibility — sets a single flat fee tier.
     function setPlatformFee(uint256 _bps) external onlyOwner {
         if (_bps > 1000) revert FeeTooHigh();
-        platformFeeBps = _bps;
+        delete feeTiers;
+        feeTiers.push(FeeTier({ upperBound: type(uint256).max, bps: _bps }));
         emit PlatformFeeSet(_bps);
     }
 
@@ -294,5 +325,30 @@ contract EscrowCampaign is ReentrancyGuard, Ownable2Step {
 
     function isConversionProcessed(bytes32 conversionId) external view returns (bool) {
         return conversions[conversionId].registeredAt != 0;
+    }
+
+    /// @notice Returns the fee bps that would apply for a given conversion count.
+    function getFeeBps(uint256 conversionCount) external view returns (uint256) {
+        return _getFeeBps(conversionCount);
+    }
+
+    /// @notice Returns all configured fee tiers.
+    function getFeeTiers() external view returns (FeeTier[] memory) {
+        return feeTiers;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    //  INTERNAL
+    // ────────────────────────────────────────────────────────────────────────────
+
+    /// @dev Finds the fee bps for a given conversion count by iterating tiers.
+    function _getFeeBps(uint256 conversionCount) internal view returns (uint256) {
+        for (uint256 i = 0; i < feeTiers.length; i++) {
+            if (conversionCount < feeTiers[i].upperBound) {
+                return feeTiers[i].bps;
+            }
+        }
+        // Fallback: last tier's bps (should not reach here if tiers are well-formed)
+        return feeTiers[feeTiers.length - 1].bps;
     }
 }
