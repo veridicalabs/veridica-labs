@@ -29,6 +29,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/conversions" className="hover:text-primary">
                 Conversions
               </Link>
+              <Link href="/chat" className="bg-primary text-white px-4 py-1.5 rounded-lg hover:bg-primary-dark transition-colors">
+                Chat con Vera
+              </Link>
             </div>
           </div>
         </nav>

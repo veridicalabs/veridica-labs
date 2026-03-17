@@ -55,14 +55,16 @@ export class ConversionController {
     try {
       const { campaignId, leadId, recipientAddress } = req.body;
 
-      if (!recipientAddress) {
-        return res.status(400).json({ error: "recipientAddress is required" });
+      // Default to treasury address if not provided (for demo/frontend)
+      const recipient = recipientAddress || process.env.TREASURY_ADDRESS || process.env.VERIFIER_ADDRESS;
+      if (!recipient) {
+        return res.status(400).json({ error: "recipientAddress is required and no default TREASURY_ADDRESS configured" });
       }
 
       const conversion = await conversionService.registerConversion(
         campaignId,
         leadId,
-        recipientAddress
+        recipient
       );
       res.status(201).json(conversion);
     } catch (error) {

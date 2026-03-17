@@ -44,4 +44,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ campaignId, amount }),
     }),
+
+  // Chat with Vera
+  chatWithVera: (message: string, campaignContext?: string) =>
+    fetchAPI("/lead/respond", {
+      method: "POST",
+      body: JSON.stringify({ message, campaignContext }),
+    }),
 };

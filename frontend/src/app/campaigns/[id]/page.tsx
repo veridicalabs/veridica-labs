@@ -147,7 +147,7 @@ export default function CampaignDetail() {
               key={conv.id}
               className="bg-white p-3 rounded border flex justify-between items-center"
             >
-              <span className="text-sm">{conv.lead.name}</span>
+              <span className="text-sm">{conv.lead?.name || conv.leadId || "Lead"}</span>
               <span className="text-sm font-medium text-green-600">
                 ${conv.amount} - {conv.status}
               </span>
