@@ -56,7 +56,7 @@ export default function NewCampaign() {
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Budget ($)</label>
+            <label className="block text-sm font-medium mb-1">Budget (tSYS)</label>
             <input
               type="number"
               required
@@ -67,7 +67,7 @@ export default function NewCampaign() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Cost/Conversion ($)</label>
+            <label className="block text-sm font-medium mb-1">Cost/Conversion (tSYS)</label>
             <input
               type="number"
               required
