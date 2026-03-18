@@ -44,31 +44,45 @@ export class EscrowService {
    * PYME deposits campaign budget into escrow contract.
    * Called from frontend when advertiser funds a campaign.
    */
-  async depositBudget(campaignId: string, amountInEther: string, advertiserAddress: string) {
+  async depositBudget(campaignId: string, amountInEther: string | number, _advertiserAddress?: string) {
+    const amount = amountInEther.toString();
+    console.log(`[EscrowService] 💰 depositBudget()`);
+    console.log(`  Campaign: ${campaignId}`);
+    console.log(`  Amount: ${amount} tSYS`);
+
+    const campaign = await prisma.campaign.findUniqueOrThrow({
+      where: { id: campaignId },
+    });
+
+    if (this.mockMode) {
+      console.log(`[EscrowService] 🎭 MOCK MODE - Simulating deposit`);
+      await prisma.campaign.update({
+        where: { id: campaignId },
+        data: { deposited: { increment: parseFloat(amount) } },
+      });
+      return { success: true, txHash: `0xMOCK_DEPOSIT_${Date.now().toString(16)}` };
+    }
+
     try {
       const campaignIdBytes32 = ethers.keccak256(ethers.toUtf8Bytes(campaignId));
-      const campaign = await prisma.campaign.findUniqueOrThrow({
+      const costPerConversion = ethers.parseEther(campaign.costPerConversion.toString());
+      const value = ethers.parseEther(amount);
+
+      console.log(`[EscrowService] 📤 Sending deposit tx...`);
+      const tx = await this.contract!.deposit(campaignIdBytes32, costPerConversion, {
+        value,
+      });
+      const receipt = await tx.wait();
+      console.log(`[EscrowService] ✅ Deposited. Tx: ${receipt.hash}`);
+
+      await prisma.campaign.update({
         where: { id: campaignId },
+        data: { deposited: { increment: parseFloat(amount) } },
       });
 
-      const costPerConversion = ethers.parseEther(campaign.costPerConversion.toString());
-      const value = ethers.parseEther(amountInEther);
-
-      // Advertiser needs to call this from frontend with their wallet
-      // Backend only tracks the transaction
-      console.log(`[Escrow] Deposit initiated for campaign ${campaignId}`);
-      console.log(`  Amount: ${amountInEther} SYS`);
-      console.log(`  Cost per conversion: ${campaign.costPerConversion} SYS`);
-
-      return {
-        success: true,
-        campaignIdBytes32,
-        costPerConversion: costPerConversion.toString(),
-        value: value.toString(),
-        message: "Advertiser must call deposit() from frontend wallet",
-      };
+      return { success: true, txHash: receipt.hash };
     } catch (error) {
-      console.error("[Escrow] Deposit failed:", error);
+      console.error("[EscrowService] ❌ deposit failed:", error);
       throw error;
     }
   }

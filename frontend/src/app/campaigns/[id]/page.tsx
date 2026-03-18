@@ -16,7 +16,8 @@ interface Conversion {
   amount: number;
   status: string;
   createdAt: string;
-  lead: { name: string };
+  leadId?: string;
+  lead?: { name: string };
 }
 
 interface Campaign {
@@ -34,20 +35,41 @@ interface Campaign {
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
-  const [depositAmount, setDepositAmount] = useState(100);
+  const [depositAmount, setDepositAmount] = useState(5);
+  const [depositing, setDepositing] = useState(false);
+  const [converting, setConverting] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
 
   const load = () => api.getCampaign(id).then(setCampaign).catch(console.error);
 
   useEffect(() => { load(); }, [id]);
 
   const handleDeposit = async () => {
-    await api.deposit(id, depositAmount);
-    load();
+    setDepositing(true);
+    setMessage("");
+    try {
+      await api.deposit(id, depositAmount);
+      setMessage("Deposit confirmed on-chain!");
+      load();
+    } catch (e) {
+      setMessage("Deposit failed. Check balance.");
+    } finally {
+      setDepositing(false);
+    }
   };
 
   const handleConvert = async (leadId: string) => {
-    await api.confirmConversion(id, leadId);
-    load();
+    setConverting(leadId);
+    setMessage("");
+    try {
+      await api.confirmConversion(id, leadId);
+      setMessage("Conversion confirmed on-chain!");
+      load();
+    } catch (e) {
+      setMessage("Conversion failed.");
+    } finally {
+      setConverting(null);
+    }
   };
 
   if (!campaign) return <p className="text-gray-500">Loading...</p>;
@@ -59,10 +81,10 @@ export default function CampaignDetail() {
 
       <div className="grid grid-cols-4 gap-4 mb-8">
         {[
-          ["Budget", `$${campaign.budget}`],
-          ["Deposited", `$${campaign.deposited}`],
-          ["Spent", `$${campaign.spent}`],
-          ["Remaining", `$${campaign.deposited - campaign.spent}`],
+          ["Presupuesto", `${campaign.budget} tSYS`],
+          ["Depositado", `${campaign.deposited} tSYS`],
+          ["Gastado", `${campaign.spent} tSYS`],
+          ["Restante", `${campaign.deposited - campaign.spent} tSYS`],
         ].map(([label, value]) => (
           <div key={label} className="bg-white p-4 rounded border">
             <p className="text-sm text-gray-500">{label}</p>
@@ -72,7 +94,7 @@ export default function CampaignDetail() {
       </div>
 
       <div className="bg-white p-4 rounded border mb-8">
-        <h2 className="font-semibold mb-2">Simulate Deposit</h2>
+        <h2 className="font-semibold mb-2">Simular depósito</h2>
         <div className="flex gap-2">
           <input
             type="number"
@@ -82,19 +104,21 @@ export default function CampaignDetail() {
           />
           <button
             onClick={handleDeposit}
-            className="bg-primary text-white px-4 py-1 rounded hover:bg-primary-dark"
+            disabled={depositing}
+            className="bg-primary text-white px-4 py-1 rounded hover:bg-primary-dark disabled:opacity-50"
           >
-            Deposit
+            {depositing ? "Procesando..." : "Depósito"}
           </button>
         </div>
+        {message && <p className="mt-2 text-sm text-green-600">{message}</p>}
       </div>
 
       <h2 className="text-lg font-semibold mb-3">
-        Leads ({campaign.leads.length})
+        Clientes potenciales ({campaign.leads.length})
       </h2>
       {campaign.leads.length === 0 ? (
         <p className="text-gray-500 text-sm mb-8">
-          No leads yet. Use the Leads Simulator to send one.
+          Aún no hay clientes potenciales. Usa el simulador de clientes potenciales para enviar uno.
         </p>
       ) : (
         <div className="space-y-3 mb-8">
@@ -107,9 +131,10 @@ export default function CampaignDetail() {
                 </div>
                 <button
                   onClick={() => handleConvert(lead.id)}
-                  className="bg-green-600 text-white text-sm px-3 py-1 rounded hover:bg-green-700"
+                  disabled={converting === lead.id}
+                  className="bg-green-600 text-white text-sm px-3 py-1 rounded hover:bg-green-700 disabled:opacity-50"
                 >
-                  Confirm Conversion
+                  {converting === lead.id ? "Procesando..." : "Confirmar conversión"}
                 </button>
               </div>
               {lead.conversations[0] && (
@@ -139,7 +164,7 @@ export default function CampaignDetail() {
         Conversions ({campaign.conversions.length})
       </h2>
       {campaign.conversions.length === 0 ? (
-        <p className="text-gray-500 text-sm">No conversions yet.</p>
+        <p className="text-gray-500 text-sm">Aún no hay conversiones.</p>
       ) : (
         <div className="space-y-2">
           {campaign.conversions.map((conv) => (
