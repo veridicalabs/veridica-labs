@@ -13,6 +13,7 @@ const ai = new AzureOpenAI({
   apiKey: AZURE_API_KEY,
   apiVersion: '2024-10-21',
   deployment: AZURE_DEPLOYMENT,
+  defaultHeaders: { 'api-key': AZURE_API_KEY },
 });
 
 // --- System prompt (Vera's identity + Menta Organika context) ---
