@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc --noEmit)",
+      "Bash(grep -E \"\\\\.\\(json|yaml|yml|config|conf\\)$\")",
+      "WebFetch(domain:101.44.12.160)",
+      "Bash(curl -s --connect-timeout 10 \"http://101.44.12.160:18789/api/agents\")",
+      "Bash(curl -s --connect-timeout 10 \"http://101.44.12.160:18789/api\")",
+      "Bash(curl -s --connect-timeout 10 \"http://101.44.12.160:18789/v1/agents\")",
+      "Bash(curl -s --connect-timeout 10 \"http://101.44.12.160:18789/agents\")",
+      "Bash(curl -s --connect-timeout 10 \"http://101.44.12.160:18789/assets/index-wxM3V0HM.js\")",
+      "Bash(grep -oE '`/[a-zA-Z0-9/${}/_-]+`')",
+      "Bash(curl -s --connect-timeout 10 \"http://101.44.12.160:18789/config\" -H \"Accept: application/json\")",
+      "Bash(grep -oE '`[^`]*api[^`]*`')",
+      "Bash(curl -s --connect-timeout 10 \"http://101.44.12.160:18789/config\" -H \"Accept: application/json\" -H \"Content-Type: application/json\")",
+      "Bash(curl -s --connect-timeout 10 \"http://101.44.12.160:18789/api/config\" -H \"Accept: application/json\")",
+      "Bash(curl -s --connect-timeout 10 \"http://101.44.12.160:18789/v1/config\" -H \"Accept: application/json\")",
+      "Bash(curl -s --connect-timeout 10 \"http://101.44.12.160:18789/chat?session=main\" -H \"Accept: application/json\" -H \"Upgrade: websocket\" -H \"Connection: Upgrade\" -v)",
+      "WebSearch",
+      "WebFetch(domain:github.com)"
+    ]
+  }
+}
