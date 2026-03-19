@@ -44,4 +44,27 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ campaignId, amount }),
     }),
+
+  // Admin
+  admin: {
+    getMetrics: () => fetchAPI("/admin/metrics"),
+    getCampaigns: (filters?: { status?: string; search?: string }) => {
+      const params = new URLSearchParams();
+      if (filters?.status) params.set("status", filters.status);
+      if (filters?.search) params.set("search", filters.search);
+      const qs = params.toString();
+      return fetchAPI(`/admin/campaigns${qs ? `?${qs}` : ""}`);
+    },
+    updateCampaignStatus: (id: string, status: string) =>
+      fetchAPI(`/admin/campaigns/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      }),
+    deleteCampaign: (id: string) =>
+      fetchAPI(`/admin/campaigns/${id}`, { method: "DELETE" }),
+    getLeadAnalytics: () => fetchAPI("/admin/analytics/leads"),
+    getAIUsage: () => fetchAPI("/admin/ai-usage"),
+    getFinancialOverview: () => fetchAPI("/admin/financial"),
+    getSystemHealth: () => fetchAPI("/admin/health"),
+  },
 };

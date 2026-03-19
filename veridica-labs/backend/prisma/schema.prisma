@@ -59,3 +59,24 @@ model Conversion {
   campaign   Campaign @relation(fields: [campaignId], references: [id])
   lead       Lead     @relation(fields: [leadId], references: [id])
 }
+
+model AIUsageLog {
+  id           String   @id @default(cuid())
+  campaignId   String?
+  action       String   // GENERATE_AD | RESPOND_LEAD | CONFIRM_CONVERSION
+  model        String   @default("gpt-4o")
+  promptTokens Int      @default(0)
+  outputTokens Int      @default(0)
+  latencyMs    Int      @default(0)
+  success      Boolean  @default(true)
+  error        String?
+  createdAt    DateTime @default(now())
+}
+
+model SystemEvent {
+  id        String   @id @default(cuid())
+  type      String   // API_REQUEST | ERROR | ESCROW_DEPOSIT | ESCROW_RELEASE | AGENT_CALL
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+}

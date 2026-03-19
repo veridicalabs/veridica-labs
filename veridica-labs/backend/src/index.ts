@@ -5,6 +5,7 @@ import { campaignRoutes } from "./routes/campaign.routes";
 import { leadRoutes } from "./routes/lead.routes";
 import { conversionRoutes } from "./routes/conversion.routes";
 import { escrowRoutes } from "./routes/escrow.routes";
+import { adminRoutes } from "./routes/admin.routes";
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use("/campaign", campaignRoutes);
 app.use("/lead", leadRoutes);
 app.use("/conversion", conversionRoutes);
 app.use("/escrow", escrowRoutes);
+app.use("/admin", adminRoutes);
 
 app.listen(PORT, () => {
   console.log(`Veridica API running on http://localhost:${PORT}`);
