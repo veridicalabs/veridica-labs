@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 
 const adminNav = [
   { href: "/admin", label: "Overview", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4" },
@@ -14,16 +16,60 @@ const adminNav = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [authed, setAuthed] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  const isLoginPage = pathname === "/admin/login";
+
+  useEffect(() => {
+    if (isLoginPage) {
+      setChecking(false);
+      return;
+    }
+
+    if (!api.auth.isLoggedIn()) {
+      router.replace("/admin/login");
+      return;
+    }
+
+    api.auth
+      .verify()
+      .then(() => setAuthed(true))
+      .catch(() => {
+        api.auth.logout();
+        router.replace("/admin/login");
+      })
+      .finally(() => setChecking(false));
+  }, [pathname, isLoginPage, router]);
+
+  // Login page renders without the sidebar
+  if (isLoginPage) return <>{children}</>;
+
+  if (checking) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-65px)] -mx-6 -mt-8 bg-gray-100">
+        <p className="text-gray-500">Verifying access...</p>
+      </div>
+    );
+  }
+
+  if (!authed) return null;
+
+  const handleLogout = () => {
+    api.auth.logout();
+    router.push("/admin/login");
+  };
 
   return (
     <div className="flex min-h-[calc(100vh-65px)] -mx-6 -mt-8">
       {/* Sidebar */}
-      <aside className="w-64 bg-gray-900 text-gray-300 flex-shrink-0">
+      <aside className="w-64 bg-gray-900 text-gray-300 flex-shrink-0 flex flex-col">
         <div className="p-6">
           <h2 className="text-lg font-bold text-white tracking-wide">Admin Panel</h2>
           <p className="text-xs text-gray-500 mt-1">Veridica Labs Dashboard</p>
         </div>
-        <nav className="mt-2">
+        <nav className="mt-2 flex-1">
           {adminNav.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -44,10 +90,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             );
           })}
         </nav>
-        <div className="mt-auto p-6 border-t border-gray-800">
-          <Link href="/" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+        <div className="p-6 border-t border-gray-800 space-y-3">
+          <Link href="/" className="block text-xs text-gray-500 hover:text-gray-300 transition-colors">
             &larr; Back to main app
           </Link>
+          <button
+            onClick={handleLogout}
+            className="block text-xs text-red-400 hover:text-red-300 transition-colors"
+          >
+            Sign out
+          </button>
         </div>
       </aside>
 
