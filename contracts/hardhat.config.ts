@@ -34,6 +34,12 @@ const config: HardhatUserConfig = {
       chainId: 5700,
       accounts: DEPLOYER_KEY,
     },
+    // Rollux Testnet — Syscoin L2 / zkSYS (chainId: 57000)
+    rolluxTestnet: {
+      url: process.env.RPC_URL_ROLLUX_TESTNET || "https://57000.rpc.thirdweb.com",
+      chainId: 57000,
+      accounts: DEPLOYER_KEY,
+    },
   },
   etherscan: {
     apiKey: {
@@ -55,6 +61,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://tanenbaum.io/api",
           browserURL: "https://tanenbaum.io",
+        },
+      },
+      {
+        network: "rolluxTestnet",
+        chainId: 57000,
+        urls: {
+          apiURL: "https://rollux.tanenbaum.io/api",
+          browserURL: "https://rollux.tanenbaum.io",
         },
       },
     ],

@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(curl -s \"https://vera.qolvecompany.com/vera/health\")",
+      "Bash(sshpass -p 'lomo_123' scp -o StrictHostKeyChecking=no /tmp/openclaw-config.json root@vera.qolvecompany.com:/tmp/openclaw-config.json)",
+      "Bash(sshpass -p 'lomo_123' ssh -o StrictHostKeyChecking=no root@vera.qolvecompany.com \"docker cp /tmp/openclaw-config.json openclaw_openclaw-gateway_1:/home/node/.openclaw/openclaw.json && docker restart openclaw_openclaw-gateway_1 && echo ''RESTARTED''\")",
+      "Bash(git push:*)",
+      "Bash(curl -s \"https://vera.qolvecompany.com/api/\")",
+      "Bash(curl -s \"https://vera.qolvecompany.com/v1/agents\")",
+      "Bash(sshpass -p 'lomo_123' scp -o StrictHostKeyChecking=no -r /tmp/openclaw-workspace/* root@vera.qolvecompany.com:/tmp/openclaw-workspace/)",
+      "Bash(sshpass -p 'lomo_123' ssh -o StrictHostKeyChecking=no root@vera.qolvecompany.com \":*)",
+      "WebSearch",
+      "Bash(npx hardhat:*)"
     ]
   }
 }
