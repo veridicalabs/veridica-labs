@@ -41,7 +41,27 @@ export default function ChatPage() {
     try {
       const res = await api.chatWithVera(
         userMessage,
-        "Menta Organika: Reposteria organica artesanal en Lima, Peru. Productos: tortas, brownies, galletas, aceites organicos."
+        `Negocio: Menta Organika — Repostería artesanal y productos orgánicos en Lima, Perú.
+
+Horario: Lunes a Domingo 9AM-9PM (incluido feriados).
+
+Delivery: S/10.00 tarifa fija. Zonas: Los Olivos, Independencia, San Martín de Porres (SMP). Tiempo: 40-60 min. Fuera de zona: sugerir recojo en tienda.
+
+Pago: Solo Yape. No efectivo, no transferencias, no tarjetas.
+
+Catálogo:
+1. Torta de Chocolate Orgánico - S/65.00 (8 porciones, cacao orgánico, sin harina refinada)
+2. Brownies Orgánicos caja x6 - S/28.00 (sin gluten, cacao orgánico y aceite de coco)
+3. Galletas de Avena y Pasas docena - S/18.00 (avena integral, pasas orgánicas, miel)
+4. Cheesecake de Maracuyá - S/72.00 (8 porciones, queso artesanal, coulis de maracuyá)
+5. Cúrcuma en Polvo Orgánica 100g - S/15.00 (para infusiones, golden milk)
+6. Aceite de Coco Extra Virgen 250ml - S/22.00 (prensado en frío, cocina y cosmético)
+7. Granola Artesanal con Frutos Secos 300g - S/20.00 (sin azúcar añadida)
+8. Muffins Integrales de Arándano caja x4 - S/16.00 (harina integral, arándanos frescos)
+9. Alfajores de Manjar Orgánico caja x6 - S/24.00 (maicena, manjar blanco artesanal)
+10. Golden Milk Mix 150g - S/25.00 (cúrcuma, canela, jengibre, pimienta — rinde 15 tazas)
+
+Reglas: Confirmar zona de delivery antes de tomar pedido. Si pide 2+ productos, ofrecer envío gratis. Si preguntan por algo fuera del catálogo, recomendar similar. Recordar que pago es solo Yape.`
       );
       setMessages((prev) => [
         ...prev,
