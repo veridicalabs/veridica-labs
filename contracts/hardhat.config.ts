@@ -1,5 +1,7 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import "@matterlabs/hardhat-zksync-solc";
+import "@matterlabs/hardhat-zksync-deploy";
 import * as dotenv from "dotenv";
 dotenv.config({ path: "../.env" });
 
@@ -34,11 +36,13 @@ const config: HardhatUserConfig = {
       chainId: 5700,
       accounts: DEPLOYER_KEY,
     },
-    // Rollux Testnet — Syscoin L2 / zkSYS (chainId: 57000)
-    rolluxTestnet: {
-      url: process.env.RPC_URL_ROLLUX_TESTNET || "https://57000.rpc.thirdweb.com",
-      chainId: 57000,
+    // zkSYS Testnet — zkTanenbaum (chainId: 57057)
+    zkSysTestnet: {
+      url: process.env.RPC_URL_ZKSYS_TESTNET || "https://rpc-zk.tanenbaum.io",
+      chainId: 57057,
       accounts: DEPLOYER_KEY,
+      zksync: true,
+      ethNetwork: "syscoinTestnet",
     },
   },
   etherscan: {
@@ -64,14 +68,18 @@ const config: HardhatUserConfig = {
         },
       },
       {
-        network: "rolluxTestnet",
-        chainId: 57000,
+        network: "zkSysTestnet",
+        chainId: 57057,
         urls: {
-          apiURL: "https://rollux.tanenbaum.io/api",
-          browserURL: "https://rollux.tanenbaum.io",
+          apiURL: "https://explorer-zk.tanenbaum.io/api",
+          browserURL: "https://explorer-zk.tanenbaum.io",
         },
       },
     ],
+  },
+  zksolc: {
+    version: "1.5.12",
+    settings: {},
   },
   paths: {
     sources: "./contracts",

@@ -1,0 +1,10 @@
+{
+  "network": "zkSysTestnet",
+  "chainId": 57057,
+  "contractAddress": "0x8b9e3655f7bf437E775280db41649AB2b9eF0E0e",
+  "verifier": "0x07f5db230e410A192fD7009B20f9367418896b0f",
+  "treasury": "0x07f5db230e410A192fD7009B20f9367418896b0f",
+  "feeTiers": "1-10: 10%, 11-30: 8%, 31+: 6%",
+  "deployer": "0x07f5db230e410A192fD7009B20f9367418896b0f",
+  "deployedAt": "2026-03-25T15:45:17.396Z"
+}

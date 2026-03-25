@@ -10,8 +10,11 @@
     "deploy:syscoinTestnet": "hardhat run scripts/deploy.ts --network syscoinTestnet"
   },
   "devDependencies": {
+    "@matterlabs/hardhat-zksync-deploy": "^1.8.0",
+    "@matterlabs/hardhat-zksync-solc": "^1.5.1",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "hardhat": "^2.22.0"
+    "hardhat": "^2.22.0",
+    "zksync-ethers": "^6.21.1"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.6.1",

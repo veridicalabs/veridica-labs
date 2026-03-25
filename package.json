@@ -1,7 +1,11 @@
 {
   "name": "veridica",
   "private": true,
-  "workspaces": ["backend", "frontend", "contracts"],
+  "workspaces": [
+    "backend",
+    "frontend",
+    "contracts"
+  ],
   "scripts": {
     "dev:backend": "npm run dev --workspace=backend",
     "dev:frontend": "npm run dev --workspace=frontend",
@@ -12,5 +16,8 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "zksync-ethers": "^6.21.1"
   }
 }
