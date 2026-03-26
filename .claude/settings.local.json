@@ -11,7 +11,9 @@
       "Bash(sshpass -p 'lomo_123' scp -o StrictHostKeyChecking=no -r /tmp/openclaw-workspace/* root@vera.qolvecompany.com:/tmp/openclaw-workspace/)",
       "Bash(sshpass -p 'lomo_123' ssh -o StrictHostKeyChecking=no root@vera.qolvecompany.com \":*)",
       "WebSearch",
-      "Bash(npx hardhat:*)"
+      "Bash(npx hardhat:*)",
+      "Bash(DEPLOYER_PRIVATE_KEY=\"2e84d1d33597fe74e7874790b9fe2a660bae9d1b007f6119511f2de77528562c\" npx hardhat compile --network zkSysTestnet)",
+      "Bash(DEPLOYER_PRIVATE_KEY=\"2e84d1d33597fe74e7874790b9fe2a660bae9d1b007f6119511f2de77528562c\" npx hardhat deploy-zksync --script deploy-escrow.ts --network zkSysTestnet)"
     ]
   }
 }
