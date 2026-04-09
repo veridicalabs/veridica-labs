@@ -65,6 +65,10 @@ Repostería artesanal y tienda de productos orgánicos en Lima, Perú.
 - No inventes información. Si no sabes algo, dilo.
 - Mantén las respuestas cortas (máximo 2000 caracteres para Discord).`;
 
+// --- Dedup & concurrency control ---
+const processedMessages = new Set();
+const channelLocks = new Set();
+
 // --- Conversation memory (per channel, last 10 messages) ---
 const conversations = new Map();
 const MAX_HISTORY = 10;
@@ -93,21 +97,27 @@ async function getAIResponse(channelId, userMessage, username) {
     ...getHistory(channelId),
   ];
 
-  try {
-    const response = await ai.chat.completions.create({
-      model: AZURE_DEPLOYMENT,
-      messages,
-      max_tokens: 800,
-      temperature: 0.7,
-    });
+  // Retry up to 2 times on transient failures
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const response = await ai.chat.completions.create({
+        model: AZURE_DEPLOYMENT,
+        messages,
+        max_tokens: 800,
+        temperature: 0.7,
+      });
 
-    const reply = response.choices[0]?.message?.content || 'No pude generar una respuesta.';
-    addToHistory(channelId, 'assistant', reply);
-    return reply;
-  } catch (error) {
-    console.error('[AI Error]', error.message);
-    return 'Disculpa, estoy teniendo problemas técnicos. Intenta de nuevo en un momento.';
+      const reply = response.choices[0]?.message?.content || 'No pude generar una respuesta.';
+      addToHistory(channelId, 'assistant', reply);
+      return reply;
+    } catch (error) {
+      console.error(`[AI Error] Attempt ${attempt}:`, error.message);
+      if (attempt < 2) {
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
   }
+  return 'Disculpa, estoy teniendo problemas técnicos. Intenta de nuevo en un momento.';
 }
 
 // --- Discord client ---
@@ -131,12 +141,25 @@ client.on('messageCreate', async (message) => {
   // Ignore bots
   if (message.author.bot) return;
 
+  // DEDUP: skip if this message ID was already processed
+  if (processedMessages.has(message.id)) return;
+  processedMessages.add(message.id);
+  setTimeout(() => processedMessages.delete(message.id), 120_000);
+
   // Respond to DMs or when mentioned
   const isDM = !message.guild;
   const isMentioned = message.mentions.has(client.user);
   const startsWithVera = message.content.toLowerCase().startsWith('vera');
 
   if (!isDM && !isMentioned && !startsWithVera) return;
+
+  // CONCURRENCY: only one response at a time per channel
+  const lockKey = message.channel.id;
+  if (channelLocks.has(lockKey)) {
+    console.log(`[Vera] Channel ${lockKey} locked, skipping message ${message.id}`);
+    return;
+  }
+  channelLocks.add(lockKey);
 
   // Clean the message (remove mention)
   let content = message.content
@@ -171,6 +194,9 @@ client.on('messageCreate', async (message) => {
   } catch (error) {
     console.error('[Discord Error]', error.message);
     await message.reply('Ocurrió un error procesando tu mensaje. Intenta de nuevo.');
+  } finally {
+    // Release lock after 2s cooldown to prevent rapid fire
+    setTimeout(() => channelLocks.delete(lockKey), 2000);
   }
 });
 
